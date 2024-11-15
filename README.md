@@ -118,8 +118,9 @@ karma test
 
 For production release:
 
-```sh
-gulp build --prod
+```py
+def normalize(date_str: str) -> int :
+    return 8
 ```
 
 Generating pre-built zip archives for distribution:
