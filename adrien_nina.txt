@@ -1,0 +1,154 @@
+﻿Adrien ROSSIGNOL & Nina LEMOINE 
+Projet Python Scraping : Marionnaud
+________________
+
+
+Introduction
+* Site analysé : Marionnaud
+* Objectif : Extraire des informations sur les parfums pour femmes dans les catégories suivantes :
+   * Eaux de parfum
+   * Eaux de toilette
+   * Eaux de cologne
+* Données à collecter pour chaque parfum :
+   * Catégorie
+   * Marque
+   * Nom du parfum
+   * Quantité
+   * Prix
+Fichiers de sortie
+1. page_links.json : Contient les liens de chaque page de la catégorie.
+2. parfum_links.json : Stocke les liens filtrés des parfums qui nous intéressent.
+3. parfum_data.json : Enregistre les informations complètes de chaque parfum au format JSON.
+4. Fichier Google Sheet : Analyse des résultats
+________________
+
+
+Pseudocode détaillé
+Point d'entrée commun pour toutes les catégories
+* Point d'entrée unique : https://www.marionnaud.fr/parfum/parfum-femme/c/P0100?currentPage=0
+* Ce point d'entrée liste tous les parfums pour femmes, toutes catégories confondues.
+Étape 1 : Identification et extraction des liens de pages
+1. Définir la fonction get_all_page_links :
+   * Objectif : Récupérer tous les liens de pages de produits de parfums, en parcourant les pages de manière incrémentale jusqu'à la dernière.
+   * Paramètre d'entrée : Nombre total de pages.
+   * Processus :
+      * Pour chaque page jusqu'à la dernière, ajouter le lien de la page avec currentPage ajusté.
+   * Sortie : Liste des liens de chaque page de la catégorie.
+def get_all_page_links(total_pages: int) -> list:
+    """Récupère les liens de chaque page de la catégorie spécifiée."""
+    urls = []
+    for page in range(total_pages):
+        url = f"https://www.marionnaud.fr/parfum/parfum-femme/c/P0100?currentPage={page}"
+        urls.append(url)
+
+
+2. Exécution de get_all_page_links avec le point d'entrée commun :
+   * Lancer la fonction pour récupérer tous les liens des pages (environ 34 pages).
+   * Sauvegarder les liens de toutes les pages dans un fichier JSON nommé page_links.json.
+________________
+
+
+Étape 2 : Stockage et filtrage des liens des articles
+1. Définir la fonction get_parfum_links_from :
+   * Objectif : Extraire les liens individuels de chaque parfum sur une page de catégorie.
+   * Paramètre d'entrée : Lien d'une page de catégorie.
+   * Processus :
+      * Accéder à la page.
+      * Rechercher toutes les balises contenant un lien de produit.
+      * Filtrer les liens pour ne garder que ceux contenant les mots-clés :
+         * "eau-de-parfum"
+         * "eau-de-toilette"
+         * "eau-de-cologne"
+   * Sortie : Liste des liens des parfums filtrés.
+ef get_parfum_links_from(page_link: str) -> list:
+    """Récupère les liens des parfums filtrés sur une page de catégorie."""
+    domain = "https://www.marionnaud.fr"
+    response = requests.get(page_link)
+    parfum_links = []
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        all_tag_div = soup.find_all("div", class_="product-list-item__actions")
+       
+        for tag_div in all_tag_div:
+            link = domain + tag_div.find("a").get("href")
+           
+            # Filtrer les liens qui contiennent les mots-clés d'intérêt
+            if any(keyword in link for keyword in ["eau-de-parfum", "eau-de-toilette", "eau-de-cologne"]):
+                parfum_links.append(link)
+
+
+2. Exécuter get_parfum_links_from sur chaque page de page_links.json :
+   * Pour chaque lien de page, appliquer la fonction de récupération de liens de produits.
+   * Compiler tous les liens de parfums dans une liste unique.
+   * Sauvegarder cette liste de liens dans un fichier JSON nommé parfum_links.json.
+________________
+
+
+Étape 3 : Itération sur chaque article et extraction des informations
+1. Définir la fonction get_parfum_info :
+   * Objectif : Récupérer les informations spécifiques de chaque parfum (catégorie, marque, nom, quantité, prix).
+   * Paramètre d'entrée : Lien d'un parfum.
+   * Processus :
+      * Accéder à la page du parfum.
+      * Extraire et enregistrer les informations pour chaque champ dans un dictionnaire :
+         * Catégorie 
+         * Marque
+         * Nom du parfum
+         * Quantité
+         * Prix
+ parfum_info = {
+        "Catégorie": category,
+        "Marque": brand,
+        "Nom": name,
+        "Quantité": quantity,
+        "Prix": price
+    }
+
+
+Chemin pour trouver les informations : 
+category = soup.find("div", class_="product-details-title__container").find("h1").get(class_="product-details-title__text").text.strip()
+    brand = soup.find("div", class_="product-details-brand-link__container").find("a").get("span").text.strip()
+    name = soup.find("span", class_="product-details-range-name").text.strip()
+    quantity = soup.find("div", class_="abt-var-sel__name").text.strip()
+    price = soup.find("span", class_="abt-var-sel__new-price").text.strip()
+
+
+
+
+   * Sortie : Dictionnaire contenant les informations de chaque parfum.
+
+
+2. Exécuter get_parfum_info sur chaque lien dans parfum_links.json :
+   * Pour chaque lien de parfum, appeler la fonction pour extraire les informations.
+   * Stocker chaque résultat dans une liste de dictionnaires.
+   * Sauvegarder toutes les informations extraites dans un fichier JSON nommé parfum_data.json.
+________________
+
+
+Synthèse du flux d'extraction
+1. Étape 1 : Extraction des liens de chaque page dans le fichier page_links.json.
+2. Étape 2 : Extraction et filtrage des liens de chaque parfum pour conserver uniquement les catégories d’intérêt dans parfum_links.json.
+3. Étape 3 : Extraction des informations détaillées de chaque parfum et structuration des données dans parfum_data.json.
+def main():
+    # Récupération des liens de pages de la catégorie et sauvegarde dans page_links.json
+    page_links = get_all_page_links(34)
+   
+    # Récupération et stockage des liens des parfums dans parfum_links.json
+    parfum_links = []
+    for page_link in page_links:
+        parfum_links.extend(get_parfum_links_from(page_link))
+   
+    with open("parfum_links.json", "w", encoding="utf-8") as f:
+        json.dump(parfum_links, f, indent=4)
+   
+    # Extraction des informations pour chaque parfum et sauvegarde dans parfum_data.json
+    all_parfums = []
+    for link in parfum_links:
+        parfum_info = get_parfum_info(link)
+        if parfum_info:
+            all_parfums.append(parfum_info)
+   
+    with open("parfum_data.json", "w", encoding="utf-8") as f:
+        json.dump(all_parfums, f, indent=4, ensure_ascii=False)
+   
+    print("Extraction terminée. Les données sont enregistrées dans 'page_links.json', 'parfum_links.json', et 'parfum_data.json'.")
